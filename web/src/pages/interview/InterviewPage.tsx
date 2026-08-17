@@ -28,7 +28,7 @@ export default function InterviewPage() {
   const { token } = useParams<{ token: string }>();
   const [candidateInfo, setCandidateInfo] = useState<CandidateInfo | null>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
-  const [interviewState, setInterviewState] = useState<InterviewState>("idle");
+  const [interviewState, setInterviewState] = useState<InterviewState>("checking");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [speaker, setSpeaker] = useState<InterviewSpeaker>(null);
   const [transcript, setTranscript] = useState<Pick<TranscriptTurn, "speaker" | "text">[]>([]);
@@ -49,7 +49,14 @@ export default function InterviewPage() {
         setSessionId(res.data.session_id);
         setInterviewState(res.data.session_status === "ended" ? "complete" : "idle");
       })
-      .catch(() => setInterviewState("complete"));
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setErrorMessage(err.response?.data?.error ?? "This interview link is invalid or has expired.");
+        } else {
+          setErrorMessage("Something went wrong loading this interview. Please try again or contact the interviewer.");
+        }
+        setInterviewState("error");
+      });
   }, [token]);
 
   const muteRef = useRef<(() => void) | null>(null);
