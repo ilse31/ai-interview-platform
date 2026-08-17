@@ -164,12 +164,6 @@ const HardwareCheck: React.FC<HardwareCheckProps> = ({ onStart }) => {
                     audio: ProctoringState.LOADING,
                 }));
             } else {
-                // Once blocked, Chrome/Firefox won't show the permission
-                // prompt again on retry — getUserMedia() just silently
-                // rejects. Surface that explicitly so "Retry" doesn't look
-                // like it's doing nothing.
-                const permissionState = await getMicPermissionState();
-                setMicDenied(permissionState === "denied");
                 setProgress((p) => ({
                     ...p,
                     ...(REQUIRE_CAMERA ? { camera: ProctoringState.ERROR } : {}),
