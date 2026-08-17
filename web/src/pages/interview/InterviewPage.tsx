@@ -28,7 +28,8 @@ export default function InterviewPage() {
   const { token } = useParams<{ token: string }>();
   const [candidateInfo, setCandidateInfo] = useState<CandidateInfo | null>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
-  const [interviewState, setInterviewState] = useState<InterviewState>("idle");
+  const [interviewState, setInterviewState] = useState<InterviewState>("checking");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [speaker, setSpeaker] = useState<InterviewSpeaker>(null);
   const [transcript, setTranscript] = useState<Pick<TranscriptTurn, "speaker" | "text">[]>([]);
   const [hardwareCheckDone, setHardwareCheckDone] = useState(false); // kept for green banner
@@ -46,9 +47,16 @@ export default function InterviewPage() {
       .then((res) => {
         setCandidateInfo(res.data);
         setSessionId(res.data.session_id);
-        if (res.data.session_status === "ended") setInterviewState("complete");
+        setInterviewState(res.data.session_status === "ended" ? "complete" : "idle");
       })
-      .catch(() => setInterviewState("complete"));
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setErrorMessage(err.response?.data?.error ?? "This interview link is invalid or has expired.");
+        } else {
+          setErrorMessage("Something went wrong loading this interview. Please try again or contact the interviewer.");
+        }
+        setInterviewState("error");
+      });
   }, [token]);
 
   const muteRef = useRef<(() => void) | null>(null);
@@ -186,6 +194,28 @@ export default function InterviewPage() {
       : connectionState === "connected"
       ? "connected"
       : "reconnecting";
+
+  // ── State: Checking session status ──────────────────────────────────────
+  if (interviewState === "checking") {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-16 text-center">
+        <div className="text-sm text-muted-foreground animate-pulse">Loading interview...</div>
+      </div>
+    );
+  }
+
+  // ── State: Invalid/expired token or other load error ──────────────────
+  if (interviewState === "error") {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-4">
+        <div className="text-4xl">⚠️</div>
+        <h2 className="text-xl font-semibold">Unable to load interview</h2>
+        <p className="text-sm text-muted-foreground">
+          {errorMessage ?? "This interview link is invalid or has expired."}
+        </p>
+      </div>
+    );
+  }
 
   // ── State A: Pre-start ──────────────────────────────────────────────────
   if (interviewState === "idle") {
