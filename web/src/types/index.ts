@@ -175,6 +175,7 @@ export interface PaginationMeta {
 
 // WebSocket message types
 export type InterviewState =
+  | "checking"
   | "idle"
   | "hardware_check"
   | "connecting"
@@ -182,7 +183,8 @@ export type InterviewState =
   | "reconnecting"
   | "draining_audio"
   | "ending"
-  | "complete";
+  | "complete"
+  | "error";
 
 export type InterviewSpeaker = "ai" | "candidate" | null;
 
