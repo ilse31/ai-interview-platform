@@ -3,15 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const okResponse = { ok: true, blob: async () => new Blob(["x"]) };
 
 describe("internetSpeedTest — upload target (F8 regression)", () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     vi.resetModules();
-    global.fetch = vi.fn().mockResolvedValue(okResponse) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(okResponse) as unknown as typeof fetch;
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     vi.unstubAllEnvs();
   });
 
@@ -22,7 +22,7 @@ describe("internetSpeedTest — upload target (F8 regression)", () => {
     const { testInternetSpeed, DEFAULT_THRESHOLDS } = await import("@/utils/internetSpeedTest");
     await testInternetSpeed(DEFAULT_THRESHOLDS);
 
-    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
     const uploadCalls = fetchMock.mock.calls.filter(([, opts]) => opts?.method === "POST");
 
     expect(uploadCalls.length).toBeGreaterThan(0);
@@ -39,7 +39,7 @@ describe("internetSpeedTest — upload target (F8 regression)", () => {
     const { testInternetSpeed, DEFAULT_THRESHOLDS } = await import("@/utils/internetSpeedTest");
     await testInternetSpeed(DEFAULT_THRESHOLDS);
 
-    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
     const uploadCalls = fetchMock.mock.calls.filter(([, opts]) => opts?.method === "POST");
 
     expect(uploadCalls.length).toBeGreaterThan(0);
