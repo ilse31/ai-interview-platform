@@ -33,9 +33,7 @@ const SPEED_TEST_PING_URL = import.meta.env.VITE_SPEED_TEST_PING_URL as string |
 // Default to our own backend's speed_test endpoint rather than third-party echo services
 // (httpbin.org/postman-echo.com): those add DNS+TLS+external-hop overhead that dominates the
 // timing for a small payload and produces artificially low/false-negative upload readings.
-const SPEED_TEST_UPLOAD_URL =
-    (import.meta.env.VITE_SPEED_TEST_UPLOAD_URL as string | undefined) ||
-    (API_BASE_URL ? `${API_BASE_URL.replace(/\/$/, "")}/speed_test` : undefined);
+const SPEED_TEST_UPLOAD_URL = undefined;
 
 async function measurePing(): Promise<number> {
     if (SPEED_TEST_PING_URL) {
