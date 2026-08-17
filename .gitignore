@@ -17,3 +17,12 @@ web/.vite/
 
 # OS
 .DS_Store
+
+
+.codegraph/
+/RULES_BE.md
+/RULES_FE.md
+/CLAUDE.md
+
+# Assessment deliverables (submitted separately as PDF, not via PR)
+/assessment/
