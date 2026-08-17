@@ -96,11 +96,17 @@ module Gemini
       true
     end
 
-    # Prompts Gemini to speak first via realtimeInput.text.
+    # Prompts Gemini to speak first via clientContent — realtimeInput has no explicit turn-completion signal
+    # (it's derived from VAD), so with no audio yet streamed it never triggers a response.
     def trigger_opening
       return unless @connected && @ws
 
-      @ws.send({ realtimeInput: { text: '[Start the interview. Greet the candidate and ask your first question.]' } }.to_json)
+      @ws.send({
+        clientContent: {
+          turns: [{ role: 'user', parts: [{ text: '[Start the interview. Greet the candidate and ask your first question.]' }] }],
+          turnComplete: true
+        }
+      }.to_json)
       Rails.logger.info('[Gemini::LiveClient] trigger_opening sent')
     end
 
