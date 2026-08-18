@@ -45,7 +45,7 @@ describe("LoginPage", () => {
     const store = renderLoginPage();
 
     await user.type(screen.getByLabelText(/email/i), "assessor@example.com");
-    await user.type(screen.getByLabelText(/password/i), "correct-password");
+    await user.type(screen.getByLabelText("Password"), "correct-password");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/assessments"));
@@ -67,7 +67,7 @@ describe("LoginPage", () => {
     renderLoginPage();
 
     await user.type(screen.getByLabelText(/email/i), "assessor@example.com");
-    await user.type(screen.getByLabelText(/password/i), "wrong-password");
+    await user.type(screen.getByLabelText("Password"), "wrong-password");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     expect(await screen.findByText(/invalid email or password/i)).toBeInTheDocument();
@@ -87,12 +87,35 @@ describe("LoginPage", () => {
     renderLoginPage();
 
     await user.type(screen.getByLabelText(/email/i), "assessor@example.com");
-    await user.type(screen.getByLabelText(/password/i), "correct-password");
+    await user.type(screen.getByLabelText("Password"), "correct-password");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     expect(screen.getByRole("button", { name: /sign in/i })).toBeDisabled();
 
     resolveLogin({ data: { token: "issued-jwt-token" } });
     await waitFor(() => expect(navigateMock).toHaveBeenCalled());
+  });
+
+  it("F5: toggles the password field between masked and plain text", async () => {
+    const user = userEvent.setup();
+    renderLoginPage();
+
+    const passwordInput = screen.getByLabelText("Password");
+    expect(passwordInput).toHaveAttribute("type", "password");
+
+    await user.click(screen.getByRole("button", { name: /show password/i }));
+    expect(passwordInput).toHaveAttribute("type", "text");
+
+    await user.click(screen.getByRole("button", { name: /hide password/i }));
+    expect(passwordInput).toHaveAttribute("type", "password");
+  });
+
+  it("F6: links 'Forgot password?' to /forgot-password", () => {
+    renderLoginPage();
+
+    expect(screen.getByRole("link", { name: /forgot password/i })).toHaveAttribute(
+      "href",
+      "/forgot-password"
+    );
   });
 });
