@@ -18,6 +18,7 @@ interface SkillCardProps {
 
 export default function SkillCard({ index, id, form, onRemove }: SkillCardProps) {
   const [anchorsOpen, setAnchorsOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(true);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id });
 
@@ -50,6 +51,17 @@ export default function SkillCard({ index, id, form, onRemove }: SkillCardProps)
           <GripVertical className="h-4 w-4" />
         </button>
 
+        {isCustom && (
+          <button
+            type="button"
+            onClick={() => setCustomOpen((o) => !o)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={customOpen ? "Collapse custom skill details" : "Expand custom skill details"}
+          >
+            {customOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+        )}
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm truncate">{skillLabel}</span>
@@ -69,9 +81,12 @@ export default function SkillCard({ index, id, form, onRemove }: SkillCardProps)
         </button>
       </div>
 
-      {/* Card body */}
+      {/* Card body — an expanded custom skill shows its editable form; everything
+          else (taxonomy skills, and custom skills collapsed behind the chevron
+          above) shows the same anchors + expected-level summary, so card
+          heights stay consistent while dragging a mixed list. */}
       <div className="px-3 pb-3 space-y-3">
-        {isCustom ? (
+        {isCustom && customOpen ? (
           <CustomSkillForm index={index} form={form} />
         ) : (
           <div className="space-y-3">
