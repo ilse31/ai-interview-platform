@@ -13,6 +13,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import VoiceBars from "@/components/interview/VoiceBars";
+import TextAnswerInput from "@/components/interview/TextAnswerInput";
 import InterviewTimer from "@/components/interview/InterviewTimer";
 import ConnectionStatus from "@/components/interview/ConnectionStatus";
 import TranscriptBubble from "@/components/interview/TranscriptBubble";
@@ -369,6 +370,12 @@ export default function InterviewPage() {
                 ))}
               </div>
             )}
+
+            {/* Typed-answer fallback (F19) — prefer speaking, but not everyone can/wants to */}
+            <TextAnswerInput
+              disabled={aiSpeaking || interviewState !== "active"}
+              onSend={(text) => sendJson({ type: "text_input", text })}
+            />
           </>
         )}
       </div>

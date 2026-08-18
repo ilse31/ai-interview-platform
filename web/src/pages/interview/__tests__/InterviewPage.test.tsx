@@ -191,3 +191,64 @@ describe("InterviewPage — connection_lost state (F19)", () => {
     expect(connectMock).toHaveBeenCalled();
   });
 });
+
+describe("InterviewPage — typed-answer fallback (F19)", () => {
+  const sendJsonMock = vi.fn();
+
+  beforeEach(() => {
+    vi.mocked(sessionsApi.getCandidateInfo).mockReset().mockResolvedValue({
+      data: { session_id: 1, role_title: "Backend Engineer", time_limit_min: 30, session_status: "pending" },
+    } as never);
+
+    sendJsonMock.mockReset();
+    vi.mocked(useAudioWebSocket).mockReset().mockImplementation(({ onStateChange, onSpeakerChange }) => {
+      (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange = onStateChange;
+      (globalThis as { __onSpeakerChange?: (s: "ai" | "candidate" | null) => void }).__onSpeakerChange =
+        onSpeakerChange;
+      return { connect: vi.fn(), send: vi.fn(), sendJson: sendJsonMock, disconnect: vi.fn(), connectionState: "connected" };
+    });
+    vi.mocked(useAudioCapture).mockReturnValue({
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      isCapturing: true,
+    });
+    vi.mocked(useAudioPlayback).mockReturnValue({
+      playChunk: vi.fn(),
+      stop: vi.fn(),
+      scheduleAfterPlayback: vi.fn(),
+      waitForDrain: vi.fn(),
+      cancelDrain: vi.fn(),
+    });
+  });
+
+  async function startActiveInterview() {
+    const user = userEvent.setup();
+    renderInterviewPage();
+    await user.click(await screen.findByRole("button", { name: /start \(stub\)/i }));
+    act(() => {
+      (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange?.("active");
+    });
+    return user;
+  }
+
+  it("sends a text_input message when a typed answer is submitted", async () => {
+    const user = await startActiveInterview();
+
+    await user.type(screen.getByRole("textbox", { name: /type your answer/i }), "I'd use a queue.");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(sendJsonMock).toHaveBeenCalledWith({ type: "text_input", text: "I'd use a queue." });
+  });
+
+  it("disables the typed-answer input while the AI is speaking", async () => {
+    await startActiveInterview();
+    act(() => {
+      (globalThis as { __onSpeakerChange?: (s: "ai" | "candidate" | null) => void }).__onSpeakerChange?.("ai");
+    });
+
+    expect(screen.getByRole("textbox", { name: /type your answer/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /send/i })).toBeDisabled();
+  });
+});
