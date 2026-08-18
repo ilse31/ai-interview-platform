@@ -38,6 +38,7 @@ export default function InterviewPage() {
   const [reconnectedPrompt, setReconnectedPrompt] = useState(false);
   const reconnectedPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionLostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const endInterviewSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false);
 
@@ -65,6 +66,11 @@ export default function InterviewPage() {
 
   const handleStateChange = useCallback((state: InterviewState) => {
     setInterviewState(state);
+
+    if (state === "complete" && endInterviewSafetyTimerRef.current) {
+      clearTimeout(endInterviewSafetyTimerRef.current);
+      endInterviewSafetyTimerRef.current = null;
+    }
 
     if (state === "draining_audio") {
       // Mute mic, stop sending — wait for audio queue to drain then call audio_complete
@@ -202,8 +208,13 @@ export default function InterviewPage() {
     stopCapture();
     stopPlayback();
     sendJson({ type: "end_session" });
-    disconnect();
-    setInterviewState("complete");
+    // Wait for the backend's `session_ended` ack (-> onStateChange("complete")) instead of
+    // disconnecting locally: closing the socket here raced the ack and the resulting `onclose`
+    // was misread as connection_lost. Fall back to a local disconnect only if the ack never arrives.
+    endInterviewSafetyTimerRef.current = setTimeout(() => {
+      disconnect();
+      setInterviewState("complete");
+    }, 5_000);
   }, [stopCapture, stopPlayback, sendJson, disconnect]);
 
   const wsConnectionStatus =

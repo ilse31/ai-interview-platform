@@ -71,7 +71,7 @@ describe("SkillCard — custom skill accordion", () => {
     ).toBeInTheDocument();
   });
 
-  it("collapses to the same anchors-toggle + expected-level block a taxonomy skill shows, not an empty card", async () => {
+  it("collapses to the expected-level block a taxonomy skill shows, not an empty card", async () => {
     const user = userEvent.setup();
     renderSkillCard({
       skill_label: "Communication",
@@ -87,9 +87,9 @@ describe("SkillCard — custom skill accordion", () => {
     expect(screen.queryByLabelText(/what counts/i)).not.toBeInTheDocument();
     // The skill's name stays visible in the header even while collapsed.
     expect(screen.getByText("Communication")).toBeInTheDocument();
-    // Same summary body as a taxonomy skill — keeps card heights consistent while dragging.
-    expect(screen.getByText(/show l1–l5 anchors/i)).toBeInTheDocument();
     expect(screen.getByText(/expected level/i)).toBeInTheDocument();
+    // No anchors have been filled in yet — the toggle would open onto an empty box, so it's hidden.
+    expect(screen.queryByText(/show l1–l5 anchors/i)).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: /expand custom skill details/i }),

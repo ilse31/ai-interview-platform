@@ -25,6 +25,12 @@ export default function SkillCard({ index, id, form, onRemove }: SkillCardProps)
   const skill = useWatch({ control: form.control, name: `skills.${index}` });
   const isCustom = skill?.is_custom;
   const skillLabel = skill?.skill_label || "New Skill";
+  const hasAnyAnchor = [1, 2, 3, 4, 5].some((level) =>
+    (skill?.[`l${level}_anchor` as keyof typeof skill] as string | undefined)?.trim()
+  );
+  // Taxonomy skills always have anchor text; a collapsed custom skill only does once the
+  // candidate has filled in CustomSkillForm — otherwise the toggle opened onto an empty box.
+  const showAnchorsToggle = !isCustom || hasAnyAnchor;
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -91,26 +97,30 @@ export default function SkillCard({ index, id, form, onRemove }: SkillCardProps)
         ) : (
           <div className="space-y-3">
             {/* B7 skill: show anchors toggle */}
-            <button
-              type="button"
-              onClick={() => setAnchorsOpen((o) => !o)}
-              className="flex items-center gap-1 text-xs text-primary hover:underline"
-            >
-              {anchorsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              {anchorsOpen ? "Hide L1–L5 anchors" : "Show L1–L5 anchors"}
-            </button>
+            {showAnchorsToggle && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAnchorsOpen((o) => !o)}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  {anchorsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  {anchorsOpen ? "Hide L1–L5 anchors" : "Show L1–L5 anchors"}
+                </button>
 
-            {anchorsOpen && (
-              <div className="text-xs text-muted-foreground space-y-1 bg-muted/50 rounded p-2">
-                {[1, 2, 3, 4, 5].map((level) => {
-                  const anchor = skill?.[`l${level}_anchor` as keyof typeof skill] as string;
-                  return anchor ? (
-                    <div key={level}>
-                      <span className="font-medium text-foreground">L{level}</span> {anchor}
-                    </div>
-                  ) : null;
-                })}
-              </div>
+                {anchorsOpen && (
+                  <div className="text-xs text-muted-foreground space-y-1 bg-muted/50 rounded p-2">
+                    {[1, 2, 3, 4, 5].map((level) => {
+                      const anchor = skill?.[`l${level}_anchor` as keyof typeof skill] as string;
+                      return anchor ? (
+                        <div key={level}>
+                          <span className="font-medium text-foreground">L{level}</span> {anchor}
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </>
             )}
 
             <div className="space-y-1.5">
