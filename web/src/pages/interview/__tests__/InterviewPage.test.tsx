@@ -1,17 +1,59 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import InterviewPage from "@/pages/interview/InterviewPage";
 import { sessionsApi } from "@/services/sessions";
+import { useAudioWebSocket } from "@/hooks/useAudioWebSocket";
+import { useAudioCapture } from "@/hooks/useAudioCapture";
+import { useAudioPlayback } from "@/hooks/useAudioPlayback";
+import type { InterviewState } from "@/types";
 
 // HardwareCheck does real browser media/audio work — irrelevant to the
-// state-machine regressions under test (F12/F13), so it's stubbed out.
+// state-machine regressions under test (F12/F13/F19), so it's stubbed out.
+// The onStart button lets connection_lost tests drive past the idle screen.
 vi.mock("@/components/HardwareCheck", () => ({
-  default: () => <div data-testid="hardware-check-stub" />,
+  default: ({ onStart }: { onStart: () => void }) => (
+    <div data-testid="hardware-check-stub">
+      <button onClick={onStart}>Start (stub)</button>
+    </div>
+  ),
 }));
 
 vi.mock("@/services/sessions", () => ({
-  sessionsApi: { getCandidateInfo: vi.fn() },
+  sessionsApi: { getCandidateInfo: vi.fn(), audioComplete: vi.fn() },
+}));
+
+// Default stubs so the pre-existing F12/F13 tests below (which never reach
+// the active-interview UI) don't have to know these hooks exist.
+vi.mock("@/hooks/useAudioWebSocket", () => ({
+  useAudioWebSocket: vi.fn(() => ({
+    connect: vi.fn(),
+    send: vi.fn(),
+    sendJson: vi.fn(),
+    disconnect: vi.fn(),
+    connectionState: "disconnected",
+  })),
+}));
+
+vi.mock("@/hooks/useAudioCapture", () => ({
+  useAudioCapture: vi.fn(() => ({
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn(),
+    mute: vi.fn(),
+    unmute: vi.fn(),
+    isCapturing: false,
+  })),
+}));
+
+vi.mock("@/hooks/useAudioPlayback", () => ({
+  useAudioPlayback: vi.fn(() => ({
+    playChunk: vi.fn(),
+    stop: vi.fn(),
+    scheduleAfterPlayback: vi.fn(),
+    waitForDrain: vi.fn(),
+    cancelDrain: vi.fn(),
+  })),
 }));
 
 function renderInterviewPage(token = "some-token") {
@@ -84,5 +126,68 @@ describe("InterviewPage — session status resolution (F12/F13 regression)", () 
     expect(await screen.findByText(/unable to load interview/i)).toBeInTheDocument();
     expect(screen.getByText(/something went wrong loading this interview/i)).toBeInTheDocument();
     expect(screen.queryByText(/^interview complete$/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("InterviewPage — connection_lost state (F19)", () => {
+  const connectMock = vi.fn();
+
+  beforeEach(() => {
+    vi.mocked(sessionsApi.getCandidateInfo).mockReset().mockResolvedValue({
+      data: { session_id: 1, role_title: "Backend Engineer", time_limit_min: 30, session_status: "pending" },
+    } as never);
+
+    connectMock.mockReset();
+    vi.mocked(useAudioWebSocket).mockReset().mockImplementation(({ onStateChange }) => {
+      // Expose the state setter so tests can drive the hook's reported state,
+      // the same way the real WebSocket's onclose handler would.
+      (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange = onStateChange;
+      return { connect: connectMock, send: vi.fn(), sendJson: vi.fn(), disconnect: vi.fn(), connectionState: "connected" };
+    });
+    vi.mocked(useAudioCapture).mockReturnValue({
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      isCapturing: true,
+    });
+    vi.mocked(useAudioPlayback).mockReturnValue({
+      playChunk: vi.fn(),
+      stop: vi.fn(),
+      scheduleAfterPlayback: vi.fn(),
+      waitForDrain: vi.fn(),
+      cancelDrain: vi.fn(),
+    });
+  });
+
+  it("shows an honest 'connection lost' message with a reconnect action instead of 'Interview Complete'", async () => {
+    const user = userEvent.setup();
+    renderInterviewPage();
+
+    await user.click(await screen.findByRole("button", { name: /start \(stub\)/i }));
+
+    // Simulate the WS hook reporting exhausted reconnect attempts.
+    act(() => {
+      (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange?.("connection_lost");
+    });
+
+    expect(await screen.findByText(/connection lost/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reconnect/i })).toBeInTheDocument();
+    expect(screen.queryByText(/^interview complete$/i)).not.toBeInTheDocument();
+  });
+
+  it("retries the WebSocket connection when 'Reconnect' is clicked", async () => {
+    const user = userEvent.setup();
+    renderInterviewPage();
+
+    await user.click(await screen.findByRole("button", { name: /start \(stub\)/i }));
+    act(() => {
+      (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange?.("connection_lost");
+    });
+    connectMock.mockClear();
+
+    await user.click(await screen.findByRole("button", { name: /reconnect/i }));
+
+    expect(connectMock).toHaveBeenCalled();
   });
 });

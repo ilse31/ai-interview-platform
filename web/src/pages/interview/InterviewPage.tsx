@@ -82,6 +82,8 @@ export default function InterviewPage() {
       connectionLostTimerRef.current = setTimeout(() => {
         setConnectionLostLong(true);
       }, 60_000);
+    } else if (state === "connection_lost") {
+      muteRef.current?.();
     } else {
       if (connectionLostTimerRef.current) {
         clearTimeout(connectionLostTimerRef.current);
@@ -178,6 +180,11 @@ export default function InterviewPage() {
     muteRef.current?.();
   }, [sessionId, connect, startCapture]);
 
+  const retryConnection = useCallback(() => {
+    setInterviewState("reconnecting");
+    connect();
+  }, [connect]);
+
   const endInterview = useCallback(async () => {
     setInterviewState("ending");
     if (reconnectedPromptTimerRef.current) clearTimeout(reconnectedPromptTimerRef.current);
@@ -213,6 +220,23 @@ export default function InterviewPage() {
         <p className="text-sm text-muted-foreground">
           {errorMessage ?? "This interview link is invalid or has expired."}
         </p>
+      </div>
+    );
+  }
+
+  // ── State: Connection lost — reconnect attempts exhausted (F19) ─────────
+  // The session is NOT ended on the backend here — only the audio WebSocket
+  // gave up reconnecting. Showing "Interview Complete" would be a lie.
+  if (interviewState === "connection_lost") {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-4">
+        <div className="text-4xl">📡</div>
+        <h2 className="text-xl font-semibold">Connection lost</h2>
+        <p className="text-sm text-muted-foreground">
+          We couldn't restore your connection automatically. Your interview
+          hasn't ended — check your internet connection and try reconnecting.
+        </p>
+        <Button onClick={retryConnection}>Reconnect</Button>
       </div>
     );
   }
