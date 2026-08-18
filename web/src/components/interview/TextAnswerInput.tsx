@@ -13,6 +13,7 @@ export default function TextAnswerInput({ disabled, onSend }: TextAnswerInputPro
 
   const submit = () => {
     const trimmed = value.trim();
+    if (!trimmed) return;
     onSend(trimmed);
     setValue("");
   };
