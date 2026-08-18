@@ -17,20 +17,21 @@ RSpec.describe AudioWebSocketMiddleware do
   end
 
   # F19 slice — typed-answer fallback, sent over the audio WS as a
-  # {"type":"text_input"} browser message on the same realtimeInput.text
-  # channel already used by inject_context (coverage/wrap-up signals).
+  # {"type":"text_input"} browser message, forwarded to Gemini as a genuine
+  # clientContent turn via Gemini::LiveClient#send_text_turn (not the silent
+  # realtimeInput.text channel used for coverage/wrap-up signals).
   describe '#handle_text_input (private)' do
     def send_text_input(text)
       middleware.send(:handle_text_input, text, browser_ws, state)
     end
 
     context "with a non-blank answer while it is the candidate's turn" do
-      before { allow(gemini_client).to receive(:inject_context).and_return(true) }
+      before { allow(gemini_client).to receive(:send_text_turn).and_return(true) }
 
-      it 'forwards the text to Gemini via inject_context' do
+      it 'forwards the text to Gemini via send_text_turn' do
         send_text_input("I'd use a message queue to decouple the services.")
 
-        expect(gemini_client).to have_received(:inject_context)
+        expect(gemini_client).to have_received(:send_text_turn)
           .with("I'd use a message queue to decouple the services.")
       end
 
@@ -56,12 +57,12 @@ RSpec.describe AudioWebSocketMiddleware do
     end
 
     context 'with a blank answer' do
-      before { allow(gemini_client).to receive(:inject_context) }
+      before { allow(gemini_client).to receive(:send_text_turn) }
 
       it 'does not forward blank text to Gemini' do
         send_text_input('   ')
 
-        expect(gemini_client).not_to have_received(:inject_context)
+        expect(gemini_client).not_to have_received(:send_text_turn)
       end
 
       it 'does not create a TranscriptTurn' do
@@ -77,13 +78,13 @@ RSpec.describe AudioWebSocketMiddleware do
     context 'while the AI is mid-turn (model_speaking)' do
       before do
         state.model_speaking = true
-        allow(gemini_client).to receive(:inject_context)
+        allow(gemini_client).to receive(:send_text_turn)
       end
 
       it 'does not forward the text to Gemini (prevents a dual turn)' do
         send_text_input('interrupting answer')
 
-        expect(gemini_client).not_to have_received(:inject_context)
+        expect(gemini_client).not_to have_received(:send_text_turn)
       end
 
       it 'does not create a TranscriptTurn' do
@@ -95,13 +96,13 @@ RSpec.describe AudioWebSocketMiddleware do
     context 'when the session has already ended' do
       before do
         state.ending_scheduled = true
-        allow(gemini_client).to receive(:inject_context)
+        allow(gemini_client).to receive(:send_text_turn)
       end
 
       it 'does not forward the text to Gemini' do
         send_text_input('too late')
 
-        expect(gemini_client).not_to have_received(:inject_context)
+        expect(gemini_client).not_to have_received(:send_text_turn)
       end
 
       it 'does not create an orphaned TranscriptTurn' do
@@ -111,7 +112,7 @@ RSpec.describe AudioWebSocketMiddleware do
     end
 
     context 'when Gemini is not actually connected' do
-      before { allow(gemini_client).to receive(:inject_context).and_return(false) }
+      before { allow(gemini_client).to receive(:send_text_turn).and_return(false) }
 
       it 'does not persist a turn for text that was never delivered' do
         expect { send_text_input('hello?') }
@@ -130,7 +131,7 @@ RSpec.describe AudioWebSocketMiddleware do
     end
 
     it 'stores a very long answer (5000 chars) intact' do
-      allow(gemini_client).to receive(:inject_context).and_return(true)
+      allow(gemini_client).to receive(:send_text_turn).and_return(true)
       long_text = 'a' * 5000
 
       send_text_input(long_text)

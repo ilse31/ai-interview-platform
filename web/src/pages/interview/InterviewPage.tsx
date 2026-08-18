@@ -105,6 +105,15 @@ export default function InterviewPage() {
     setTranscript((prev) => [...prev.slice(-9), turn]); // keep last 10
   }, []);
 
+  const [sendError, setSendError] = useState<string | null>(null);
+  const sendErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSendError = useCallback((message: string) => {
+    if (sendErrorTimerRef.current) clearTimeout(sendErrorTimerRef.current);
+    setSendError(message);
+    sendErrorTimerRef.current = setTimeout(() => setSendError(null), 6_000);
+  }, []);
+
   const { playChunk, stop: stopPlayback, scheduleAfterPlayback, waitForDrain, cancelDrain } = useAudioPlayback();
   const audioCompleteCalledRef = useRef(false);
   const audioCompleteSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -149,6 +158,7 @@ export default function InterviewPage() {
     onStateChange: handleStateChange,
     onSpeakerChange: handleSpeakerChange,
     onReconnected: handleReconnected,
+    onError: handleSendError,
   });
 
   const { start: startCapture, stop: stopCapture, mute, unmute } = useAudioCapture({
@@ -380,6 +390,9 @@ export default function InterviewPage() {
               disabled={aiSpeaking || interviewState !== "active"}
               onSend={(text) => sendJson({ type: "text_input", text })}
             />
+            {sendError && (
+              <p className="text-xs text-destructive w-full text-center">{sendError}</p>
+            )}
           </>
         )}
       </div>

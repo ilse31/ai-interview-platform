@@ -96,6 +96,22 @@ module Gemini
       true
     end
 
+    # Sends a typed candidate answer as a genuine conversational turn, so Gemini actually
+    # responds to it — unlike #inject_context (realtimeInput.text), which is silent context
+    # only folded into whatever turn audio/VAD triggers next. Same clientContent+turnComplete
+    # mechanism as #trigger_opening, the only path proven to elicit a response without audio.
+    def send_text_turn(text)
+      return false unless @connected && @ws
+
+      @ws.send({
+        clientContent: {
+          turns: [{ role: 'user', parts: [{ text: text }] }],
+          turnComplete: true
+        }
+      }.to_json)
+      true
+    end
+
     # Prompts Gemini to speak first via clientContent — realtimeInput has no explicit turn-completion signal
     # (it's derived from VAD), so with no audio yet streamed it never triggers a response.
     def trigger_opening

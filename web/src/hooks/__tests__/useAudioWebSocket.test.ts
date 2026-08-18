@@ -58,6 +58,7 @@ describe("useAudioWebSocket", () => {
 
   function setup() {
     const onStateChange = vi.fn();
+    const onError = vi.fn();
     const hook = renderHook(() =>
       useAudioWebSocket({
         sessionId: 1,
@@ -65,9 +66,10 @@ describe("useAudioWebSocket", () => {
         onTranscript: vi.fn(),
         onStateChange,
         onSpeakerChange: vi.fn(),
+        onError,
       })
     );
-    return { onStateChange, hook };
+    return { onStateChange, onError, hook };
   }
 
   test("sets state to connection_lost, not complete, when all reconnect attempts are exhausted", () => {
@@ -143,5 +145,24 @@ describe("useAudioWebSocket", () => {
     });
 
     expect(onStateChange).toHaveBeenCalledWith("complete");
+  });
+
+  test("surfaces a recoverable error (e.g. a failed text_input send) via onError instead of silently dropping it", () => {
+    const { onError, onStateChange, hook } = setup();
+
+    act(() => {
+      hook.result.current.connect();
+    });
+    act(() => {
+      MockWebSocket.instances[0].simulateOpen();
+      MockWebSocket.instances[0].simulateMessage({
+        type: "error",
+        message: "Unable to send message — session is not connected.",
+        recoverable: true,
+      });
+    });
+
+    expect(onError).toHaveBeenCalledWith("Unable to send message — session is not connected.");
+    expect(onStateChange).not.toHaveBeenCalledWith("complete");
   });
 });

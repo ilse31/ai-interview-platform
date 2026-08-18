@@ -201,10 +201,11 @@ describe("InterviewPage — typed-answer fallback (F19)", () => {
     } as never);
 
     sendJsonMock.mockReset();
-    vi.mocked(useAudioWebSocket).mockReset().mockImplementation(({ onStateChange, onSpeakerChange }) => {
+    vi.mocked(useAudioWebSocket).mockReset().mockImplementation(({ onStateChange, onSpeakerChange, onError }) => {
       (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange = onStateChange;
       (globalThis as { __onSpeakerChange?: (s: "ai" | "candidate" | null) => void }).__onSpeakerChange =
         onSpeakerChange;
+      (globalThis as { __onError?: (message: string) => void }).__onError = onError;
       return { connect: vi.fn(), send: vi.fn(), sendJson: sendJsonMock, disconnect: vi.fn(), connectionState: "connected" };
     });
     vi.mocked(useAudioCapture).mockReturnValue({
@@ -250,5 +251,19 @@ describe("InterviewPage — typed-answer fallback (F19)", () => {
 
     expect(screen.getByRole("textbox", { name: /type your answer/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /send/i })).toBeDisabled();
+  });
+
+  it("shows a visible message instead of silently dropping a failed send (e.g. text_input rejected server-side)", async () => {
+    await startActiveInterview();
+
+    act(() => {
+      (globalThis as { __onError?: (message: string) => void }).__onError?.(
+        "Unable to send message — session is not connected."
+      );
+    });
+
+    expect(
+      await screen.findByText(/unable to send message — session is not connected\./i)
+    ).toBeInTheDocument();
   });
 });
