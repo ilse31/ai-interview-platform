@@ -29,7 +29,7 @@ export default function TextAnswerInput({ disabled, onSend }: TextAnswerInputPro
     <div className="flex items-end gap-2 w-full">
       <Textarea
         aria-label="Type your answer"
-        placeholder="Prefer to type? Write your answer here…"
+        placeholder="Prefer to type?"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
