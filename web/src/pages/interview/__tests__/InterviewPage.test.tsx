@@ -267,3 +267,94 @@ describe("InterviewPage — typed-answer fallback (F19)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("InterviewPage — End Interview race condition (F25)", () => {
+  const sendJsonMock = vi.fn();
+  const disconnectMock = vi.fn();
+
+  beforeEach(() => {
+    vi.mocked(sessionsApi.getCandidateInfo).mockReset().mockResolvedValue({
+      data: { session_id: 1, role_title: "Backend Engineer", time_limit_min: 30, session_status: "pending" },
+    } as never);
+
+    sendJsonMock.mockReset();
+    disconnectMock.mockReset();
+    vi.mocked(useAudioWebSocket).mockReset().mockImplementation(({ onStateChange }) => {
+      (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange = onStateChange;
+      return {
+        connect: vi.fn(),
+        send: vi.fn(),
+        sendJson: sendJsonMock,
+        disconnect: disconnectMock,
+        connectionState: "connected",
+      };
+    });
+    vi.mocked(useAudioCapture).mockReturnValue({
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      isCapturing: true,
+    });
+    vi.mocked(useAudioPlayback).mockReturnValue({
+      playChunk: vi.fn(),
+      stop: vi.fn(),
+      scheduleAfterPlayback: vi.fn(),
+      waitForDrain: vi.fn(),
+      cancelDrain: vi.fn(),
+    });
+  });
+
+  async function startActiveInterviewAndEndIt(user: ReturnType<typeof userEvent.setup>) {
+    renderInterviewPage();
+    await user.click(await screen.findByRole("button", { name: /start \(stub\)/i }));
+    act(() => {
+      (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange?.("active");
+    });
+
+    // Trigger button reads "End Interview"; the AlertDialogAction that actually
+    // confirms reads "End interview" (lowercase "interview") — match case-sensitively
+    // so the two aren't ambiguous once both are in the DOM.
+    await user.click(await screen.findByRole("button", { name: "End Interview" }));
+    await user.click(await screen.findByRole("button", { name: "End interview" }));
+  }
+
+  it("does not disconnect locally right after sending end_session — waits for the backend's ack instead", async () => {
+    const user = userEvent.setup();
+    await startActiveInterviewAndEndIt(user);
+
+    expect(sendJsonMock).toHaveBeenCalledWith({ type: "end_session" });
+    // The F25 bug: disconnect() was called synchronously here, racing the backend's
+    // session_ended ack and causing onclose to report connection_lost instead of complete.
+    expect(disconnectMock).not.toHaveBeenCalled();
+  });
+
+  it("lands on 'Interview Complete' when the backend acks session_ended, not 'Connection lost'", async () => {
+    const user = userEvent.setup();
+    await startActiveInterviewAndEndIt(user);
+
+    act(() => {
+      (globalThis as { __onStateChange?: (s: InterviewState) => void }).__onStateChange?.("complete");
+    });
+
+    expect(await screen.findByText(/^interview complete$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/connection lost/i)).not.toBeInTheDocument();
+  });
+
+  it("falls back to a local disconnect + complete if the backend never acks within the safety window", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup();
+    await startActiveInterviewAndEndIt(user);
+
+    expect(disconnectMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(disconnectMock).toHaveBeenCalled();
+    expect(await screen.findByText(/^interview complete$/i)).toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+});
