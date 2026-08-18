@@ -303,14 +303,18 @@ export default function InterviewPage() {
   return (
     <div className="max-w-xl mx-auto px-4 flex flex-col h-full">
       {/* Top bar */}
-      <div className="flex items-center justify-between py-3 border-b sticky top-12 bg-white z-10">
-        <span className="text-sm font-medium">AI Interview</span>
+      <div className="flex items-center justify-between gap-2 py-3 border-b sticky top-12 bg-white z-10">
+        <span className="text-sm font-medium truncate">
+          {candidateInfo?.role_title ?? "Interview in progress"}
+        </span>
         {candidateInfo && (
-          <InterviewTimer
-            totalSeconds={candidateInfo.time_limit_min * 60}
-            running={interviewState === "active"}
-            onExpired={endInterview}
-          />
+          <div className="shrink-0">
+            <InterviewTimer
+              totalSeconds={candidateInfo.time_limit_min * 60}
+              running={interviewState === "active"}
+              onExpired={endInterview}
+            />
+          </div>
         )}
       </div>
 
@@ -381,10 +385,10 @@ export default function InterviewPage() {
       </div>
 
       {/* Bottom bar */}
-      <div className="border-t py-3 flex items-center justify-between gap-4 sticky bottom-0 bg-white">
+      <div className="border-t py-3 flex flex-wrap items-center justify-between gap-3 sticky bottom-0 bg-white">
         <ConnectionStatus state={wsConnectionStatus} />
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
           <Button
             variant={micMuted ? "destructive" : "outline"}
             size="sm"
