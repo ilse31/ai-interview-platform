@@ -9,7 +9,7 @@ import { sessionsApi } from "@/services/sessions";
 import { vacanciesApi } from "@/services/vacancies";
 import { portfoliosApi } from "@/services/portfolios";
 import { usePolling } from "@/hooks/usePolling";
-import { ArrowLeft, Download, Loader2, RefreshCw, Zap, FileText } from "lucide-react";
+import { ArrowLeft, FileDown, FileJson, Loader2, RefreshCw, Zap, FileText } from "lucide-react";
 import type { Portfolio, AssessorOverride, Vacancy } from "@/types";
 
 export default function PortfolioPage() {
@@ -135,8 +135,10 @@ export default function PortfolioPage() {
                 size="sm"
                 onClick={() => handleExport("pdf")}
                 disabled={!!exporting}
+                aria-label="Export as PDF"
+                title="Export as PDF"
               >
-                {exporting === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5 sm:mr-1" />}
+                {exporting === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5 sm:mr-1" />}
                 <span className="hidden sm:inline">PDF</span>
               </Button>
               <Button
@@ -144,8 +146,10 @@ export default function PortfolioPage() {
                 size="sm"
                 onClick={() => handleExport("json")}
                 disabled={!!exporting}
+                aria-label="Export as JSON"
+                title="Export as JSON"
               >
-                {exporting === "json" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5 sm:mr-1" />}
+                {exporting === "json" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileJson className="h-3.5 w-3.5 sm:mr-1" />}
                 <span className="hidden sm:inline">JSON</span>
               </Button>
             </>
