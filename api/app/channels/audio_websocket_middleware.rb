@@ -435,9 +435,32 @@ class AudioWebSocketMiddleware
       send_json(browser_ws, type: 'session_ended', reason: 'manual_candidate')
       state.gemini_client&.close
       browser_ws.close
+    when 'text_input'
+      handle_text_input(message['text'], browser_ws, state)
     end
   rescue JSON::ParserError
     # ignore malformed control messages
+  end
+
+  # Typed-answer fallback (F19 slice) — candidate answers by typing instead of speaking.
+  # Uses the same realtimeInput.text channel as inject_context (coverage/wrap-up signals),
+  # so it never conflicts with the audio stream. Gated on model_speaking to avoid a dual
+  # response if a typed answer arrives while the AI is still talking, and on ending_scheduled
+  # so a message that arrives just as the session is wrapping up doesn't orphan a turn.
+  def handle_text_input(text, browser_ws, state)
+    return if text.blank?
+    return if state.model_speaking
+    return if state.ending_scheduled
+
+    unless state.gemini_client&.inject_context(text)
+      send_json(browser_ws, type: 'error', message: 'Unable to send message — session is not connected.',
+                             recoverable: true)
+      return
+    end
+
+    turn_number = state.increment_turn!
+    save_transcript_turn(state.session, turn_number, 'candidate', text)
+    send_json(browser_ws, type: 'transcription', speaker: 'candidate', text: text, turn_number: turn_number)
   end
 
   # Schedules a proactive Gemini reconnect ~8.5min in, before Gemini's 10min hard limit triggers a 1011 close.
