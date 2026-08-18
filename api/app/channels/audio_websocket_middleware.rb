@@ -449,6 +449,7 @@ class AudioWebSocketMiddleware
   # so a message that arrives just as the session is wrapping up doesn't orphan a turn.
   def handle_text_input(text, browser_ws, state)
     return if text.blank?
+    return if state.model_speaking
     return if state.ending_scheduled
 
     unless state.gemini_client&.inject_context(text)
