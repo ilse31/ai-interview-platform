@@ -112,14 +112,14 @@ describe("TranscriptPage", () => {
     } as never);
     const user = userEvent.setup();
 
-    global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
-    global.URL.revokeObjectURL = vi.fn();
+    globalThis.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+    globalThis.URL.revokeObjectURL = vi.fn();
 
     renderPage();
 
     const downloadButton = await screen.findByRole("button", { name: /download/i });
     await user.click(downloadButton);
 
-    expect(global.URL.createObjectURL).toHaveBeenCalled();
+    expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
   });
 });

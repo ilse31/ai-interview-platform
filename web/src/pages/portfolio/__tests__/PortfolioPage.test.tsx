@@ -87,8 +87,8 @@ describe("PortfolioPage", () => {
       },
     } as never);
 
-    global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
-    global.URL.revokeObjectURL = vi.fn();
+    globalThis.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+    globalThis.URL.revokeObjectURL = vi.fn();
   });
 
   it("shows a loading state before data resolves", () => {
