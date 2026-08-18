@@ -41,5 +41,15 @@ RSpec.describe 'Api::V1::Authentication', type: :request do
 
       expect(response).to have_http_status(:unauthorized)
     end
+
+    # P0 security fix — Rails logs `Parameters: {...}` for every request; without
+    # filter_parameters configured, this would print the raw login password.
+    it 'filters the password out of the request log parameters' do
+      user = create(:user, email: 'admin3@example.com', password: 'sekret123', role: 'admin')
+
+      post '/api/v1/auth/login', params: { email: user.email, password: 'sekret123' }
+
+      expect(request.filtered_parameters['password']).to eq('[FILTERED]')
+    end
   end
 end

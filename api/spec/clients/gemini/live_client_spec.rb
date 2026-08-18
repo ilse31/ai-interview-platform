@@ -44,4 +44,52 @@ RSpec.describe Gemini::LiveClient do
       expect(fake_ws).not_to have_received(:send)
     end
   end
+
+  # P0 security fix — server logs must never contain verbatim candidate/AI speech
+  # (PII, interview answers). Only lengths are safe to log for debugging.
+  describe "#log_gemini_event" do
+    let(:secret_text) { "My previous salary was 15 million and my NIK is 1234567890123456." }
+
+    it "does not log the verbatim input transcription text" do
+      data = {
+        "serverContent" => {
+          "inputTranscription" => { "text" => secret_text }
+        }
+      }
+
+      allow(Rails.logger).to receive(:info)
+
+      client.send(:log_gemini_event, data)
+
+      expect(Rails.logger).not_to have_received(:info).with(a_string_including(secret_text))
+    end
+
+    it "does not log the verbatim output transcription text" do
+      data = {
+        "serverContent" => {
+          "outputTranscription" => { "text" => secret_text }
+        }
+      }
+
+      allow(Rails.logger).to receive(:info)
+
+      client.send(:log_gemini_event, data)
+
+      expect(Rails.logger).not_to have_received(:info).with(a_string_including(secret_text))
+    end
+
+    it "logs only the character count of the transcription, not its content" do
+      data = {
+        "serverContent" => {
+          "inputTranscription" => { "text" => secret_text }
+        }
+      }
+
+      allow(Rails.logger).to receive(:info)
+
+      client.send(:log_gemini_event, data)
+
+      expect(Rails.logger).to have_received(:info).with(a_string_matching(/inputTx=#{secret_text.length}chars/))
+    end
+  end
 end
